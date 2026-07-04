@@ -8,8 +8,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     resolve: {
       alias: isProduction ? {
-        'react-dom/client': 'react-dom/profiling',
-        'react-dom': 'react-dom/profiling'
+        'react-dom/client': 'react-dom/profiling'
       } : {}
     }
   }
