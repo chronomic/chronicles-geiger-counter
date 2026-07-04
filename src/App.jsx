@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Geiger } from 'react-geiger';
+import geigerSound from './assets/sounds/Geiger-shot-single.mp3';
 
 // Radioisotopes specifications
 const ISOTOPES = [
@@ -71,7 +72,7 @@ export default function App() {
     setIsInitialized(true);
 
     // Fire a silent audio pulse to immediately unlock Web Audio API on this user interaction event
-    const unlockAudio = new Audio('/sounds/Geiger-shot-single.mp3');
+    const unlockAudio = new Audio(geigerSound);
     unlockAudio.volume = 0;
     unlockAudio.play().catch(() => { });
   };
@@ -449,7 +450,7 @@ export default function App() {
   }, [logs]);
 
   return (
-    <Geiger renderTimeThreshold={0} customSound="/sounds/Geiger-shot-single.mp3">
+    <Geiger renderTimeThreshold={0} customSound={geigerSound}>
 
       {isStartingUp && (
         <div className="crt-startup-overlay flex-col-center" style={{ zIndex: 100 }}>
