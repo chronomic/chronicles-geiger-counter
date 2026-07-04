@@ -1,0 +1,609 @@
+/* ==========================================
+   RADIOACTIVE CORE REACTOR DESIGN SYSTEM
+   ========================================== */
+
+:root {
+  --green-primary: #00ff66;
+  --green-glow: rgba(0, 255, 102, 0.35);
+  --green-glow-strong: rgba(0, 255, 102, 0.85);
+  --green-dim: rgba(0, 255, 102, 0.15);
+  
+  --yellow-warning: #ffdd00;
+  --yellow-glow: rgba(255, 221, 0, 0.4);
+  
+  --orange-hazard: #ff6600;
+  --orange-glow: rgba(255, 102, 0, 0.45);
+  
+  --red-meltdown: #ff0033;
+  --red-glow: rgba(255, 0, 51, 0.6);
+  --red-dim: rgba(255, 0, 51, 0.15);
+
+  --bg-deep: #050805;
+  --bg-panel: #0d140e;
+  --bg-panel-light: #162218;
+  --border-glow: rgba(0, 255, 102, 0.25);
+  --border-glow-active: rgba(0, 255, 102, 0.7);
+
+  --font-mono: 'Share Tech Mono', 'Fira Code', monospace;
+  --font-sans: 'Inter', 'Montserrat', sans-serif;
+}
+
+/* RESET */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-deep);
+  color: #c5fcd4;
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+  image-rendering: pixelated;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Custom Scrollbar for Terminal aesthetics */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-deep);
+  border-left: 1px solid var(--border-glow);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--green-dim);
+  border: 1px solid var(--green-primary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--green-primary);
+  box-shadow: 0 0 8px var(--green-primary);
+}
+
+/* ==========================================
+   CRT SCREEN & TERMINAL EFFECTS
+   ========================================== */
+
+.crt-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* CRT Screen Scanlines & Curve overlay */
+.crt-screen::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 255, 0, 0.04));
+  z-index: 9999;
+  background-size: 100% 4px, 6px 100%;
+  pointer-events: none;
+}
+
+/* Subtle moving scanner line */
+.crt-screen::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: rgba(0, 255, 102, 0.04);
+  opacity: 0;
+  z-index: 9998;
+  pointer-events: none;
+  animation: crtScanline 8s linear infinite;
+}
+
+/* Screen Flicker */
+.crt-flicker {
+  animation: crtFlicker 0.15s infinite;
+}
+
+/* CRT Static Noise Overlay */
+.crt-noise {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9997;
+  opacity: 0.85;
+}
+
+/* ==========================================
+   THEME COMPONENTS
+   ========================================== */
+
+/* Cyber Punk Terminal Panel */
+.cyber-panel {
+  position: relative;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  border-radius: 4px;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.05), inset 0 0 15px rgba(0, 255, 102, 0.05);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.cyber-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--green-primary);
+  border-left: 2px solid var(--green-primary);
+}
+
+.cyber-panel::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-bottom: 2px solid var(--green-primary);
+  border-right: 2px solid var(--green-primary);
+}
+
+.cyber-panel.active {
+  border-color: var(--border-glow-active);
+  box-shadow: 0 0 25px rgba(0, 255, 102, 0.15), inset 0 0 20px rgba(0, 255, 102, 0.1);
+}
+
+/* Warnings and Alerts Panels */
+.cyber-panel.warning-yellow {
+  border-color: var(--yellow-warning);
+  box-shadow: 0 0 20px rgba(255, 221, 0, 0.1), inset 0 0 15px rgba(255, 221, 0, 0.05);
+}
+.cyber-panel.warning-yellow::before, .cyber-panel.warning-yellow::after {
+  border-color: var(--yellow-warning);
+}
+
+.cyber-panel.hazard-orange {
+  border-color: var(--orange-hazard);
+  box-shadow: 0 0 20px rgba(255, 102, 0, 0.15), inset 0 0 15px rgba(255, 102, 0, 0.05);
+}
+.cyber-panel.hazard-orange::before, .cyber-panel.hazard-orange::after {
+  border-color: var(--orange-hazard);
+}
+
+.cyber-panel.critical-red {
+  border-color: var(--red-meltdown);
+  box-shadow: 0 0 30px rgba(255, 0, 51, 0.25), inset 0 0 20px rgba(255, 0, 51, 0.15);
+  animation: panelRedPulse 1.5s infinite alternate;
+}
+.cyber-panel.critical-red::before, .cyber-panel.critical-red::after {
+  border-color: var(--red-meltdown);
+}
+
+/* Hazard diagonal stripes */
+.hazard-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg-deep),
+    var(--bg-deep) 10px,
+    #131e13 10px,
+    #131e13 20px
+  );
+  border: 1px solid var(--green-dim);
+}
+
+.hazard-stripes-yellow-black {
+  background: repeating-linear-gradient(
+    -45deg,
+    #f2b90c,
+    #f2b90c 10px,
+    #1e1401 10px,
+    #1e1401 20px
+  );
+  border: 1px solid #f2b90c;
+}
+
+/* Glowing text & glows */
+.glow-text-green {
+  color: var(--green-primary);
+  text-shadow: 0 0 8px var(--green-glow-strong);
+}
+
+.glow-text-yellow {
+  color: var(--yellow-warning);
+  text-shadow: 0 0 8px var(--yellow-warning);
+}
+
+.glow-text-orange {
+  color: var(--orange-hazard);
+  text-shadow: 0 0 8px var(--orange-hazard);
+}
+
+.glow-text-red {
+  color: var(--red-meltdown);
+  text-shadow: 0 0 10px var(--red-meltdown), 0 0 20px var(--red-meltdown);
+}
+
+/* Glowing Cyber Buttons */
+.cyber-btn {
+  background: var(--bg-panel);
+  border: 1px solid var(--green-primary);
+  color: var(--green-primary);
+  font-family: var(--font-mono);
+  font-weight: bold;
+  padding: 8px 16px;
+  cursor: pointer;
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.cyber-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 4px;
+  border-top: 1px solid #fff;
+  border-left: 1px solid #fff;
+}
+
+.cyber-btn:hover {
+  background: var(--green-primary);
+  color: var(--bg-deep);
+  box-shadow: 0 0 15px var(--green-primary);
+}
+
+.cyber-btn:active {
+  transform: scale(0.96);
+}
+
+.cyber-btn.active {
+  background: var(--green-dim);
+  box-shadow: inset 0 0 10px rgba(0, 255, 102, 0.4);
+}
+
+/* Orange Warning Button */
+.cyber-btn-orange {
+  border-color: var(--orange-hazard);
+  color: var(--orange-hazard);
+}
+.cyber-btn-orange::before {
+  border-color: #ffaa55;
+}
+.cyber-btn-orange:hover {
+  background: var(--orange-hazard);
+  color: var(--bg-deep);
+  box-shadow: 0 0 15px var(--orange-hazard);
+}
+.cyber-btn-orange.active {
+  background: rgba(255, 102, 0, 0.15);
+  box-shadow: inset 0 0 10px rgba(255, 102, 0, 0.4);
+}
+
+/* Slider Custom Styling */
+.cyber-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  background: var(--bg-panel-light);
+  border: 1px solid var(--green-dim);
+  outline: none;
+}
+.cyber-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 20px;
+  background: var(--green-primary);
+  border: 1px solid #fff;
+  cursor: pointer;
+  box-shadow: 0 0 5px var(--green-primary);
+}
+.cyber-slider::-webkit-slider-thumb:hover {
+  background: #fff;
+  box-shadow: 0 0 10px var(--green-primary);
+}
+
+/* ==========================================
+   ANIMATION KEYFRAMES
+   ========================================== */
+
+@keyframes crtScanline {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0.08;
+  }
+  50% {
+    opacity: 0.05;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0.08;
+  }
+}
+
+@keyframes crtFlicker {
+  0% { opacity: 0.985; }
+  50% { opacity: 0.995; }
+  100% { opacity: 0.988; }
+}
+
+@keyframes panelRedPulse {
+  from {
+    border-color: var(--red-meltdown);
+    box-shadow: 0 0 15px rgba(255, 0, 51, 0.15), inset 0 0 10px rgba(255, 0, 51, 0.1);
+  }
+  to {
+    border-color: #ff5566;
+    box-shadow: 0 0 35px rgba(255, 0, 51, 0.4), inset 0 0 25px rgba(255, 0, 51, 0.25);
+  }
+}
+
+@keyframes alarmFlash {
+  0%, 100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+  50% {
+    background-color: var(--red-dim);
+    box-shadow: inset 0 0 20px rgba(255, 0, 51, 0.3);
+  }
+}
+
+.alarm-flash-bg {
+  animation: alarmFlash 1s infinite;
+}
+
+@keyframes screenShake {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2px, -1px); }
+  20% { transform: translate(2px, 1px); }
+  30% { transform: translate(-1px, 2px); }
+  40% { transform: translate(1px, -2px); }
+  50% { transform: translate(-2px, 1px); }
+  60% { transform: translate(2px, -1px); }
+  70% { transform: translate(-1px, -2px); }
+  85% { transform: translate(2px, 2px); }
+}
+
+.screen-shake {
+  animation: screenShake 0.12s infinite;
+}
+
+.led-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+.led-green {
+  background-color: var(--green-primary);
+  box-shadow: 0 0 8px var(--green-primary);
+}
+.led-yellow {
+  background-color: var(--yellow-warning);
+  box-shadow: 0 0 8px var(--yellow-warning);
+}
+.led-orange {
+  background-color: var(--orange-hazard);
+  box-shadow: 0 0 8px var(--orange-hazard);
+}
+.led-red {
+  background-color: var(--red-meltdown);
+  box-shadow: 0 0 12px var(--red-meltdown);
+  animation: ledBlink 0.5s infinite alternate;
+}
+
+@keyframes ledBlink {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+
+/* ==========================================
+   FULLSCREEN DASHBOARD LAYOUT (VANILLA CSS)
+   ========================================== */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  padding: 8px;
+  gap: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.dashboard-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px !important;
+  gap: 8px;
+}
+
+.dashboard-main {
+  height: calc(100vh - 480px); /* Adjusted for 3x taller footer */
+  display: grid;
+  grid-template-columns: 400px 1fr 400px;
+  grid-template-rows: 1fr; /* Force the single row to stretch to 100% height */
+  gap: 8px;
+  min-height: 0; /* Crucial for nested flex overflow */
+}
+
+@media (max-width: 1024px) {
+  .dashboard-main {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+}
+
+.dashboard-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+
+.dashboard-column.left {
+  /* core metrics and stats */
+}
+
+.dashboard-column.center {
+  /* core reactor chamber */
+}
+
+.dashboard-column.right {
+  /* controls, loaders, actions */
+}
+
+.dashboard-footer {
+  flex-shrink: 0;
+  height: 400px; /* 3x taller log terminal */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Flex/Grid Helper Utilities */
+.flex-column-grow {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.flex-row-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flex-space-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.grid-cols-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.grid-cols-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.bg-black-60 {
+  background-color: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--green-dim);
+  border-radius: 4px;
+}
+
+/* --- Structural Tailwind Utilities for Chamber Layout --- */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.flex-row { flex-direction: row; }
+.flex-grow { flex-grow: 1; min-height: 0; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.items-center { align-items: center; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.relative { position: relative; }
+.absolute { position: absolute; }
+.inset-0 { top: 0; left: 0; right: 0; bottom: 0; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+.select-none { user-select: none; }
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+.pointer-events-none { pointer-events: none; }
+.cursor-crosshair { cursor: crosshair; }
+.block { display: block; }
+.animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.transition-opacity { transition-property: opacity; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
+.duration-300 { transition-duration: 300ms; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+@keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+
+/* --- Fallout CRT TV Startup Animation --- */
+.crt-startup-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: black;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: crt-startup-fade 2.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
+}
+
+.crt-startup-overlay::before {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  width: 0;
+  height: 2px;
+  animation: crt-line-expand 2.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
+}
+
+@keyframes crt-line-expand {
+  0% {
+    width: 0%;
+    height: 2px;
+    opacity: 0;
+  }
+  15% {
+    width: 100%;
+    height: 2px;
+    opacity: 1;
+    box-shadow: 0 0 15px 2px white;
+  }
+  40% {
+    width: 100%;
+    height: 2px;
+    opacity: 1;
+    box-shadow: 0 0 20px 5px white;
+  }
+  60% {
+    width: 100%;
+    height: 100vh;
+    opacity: 1;
+    box-shadow: none;
+  }
+  100% {
+    width: 100%;
+    height: 100vh;
+    opacity: 0;
+  }
+}
+
+@keyframes crt-startup-fade {
+  0%, 75% {
+    background-color: black;
+  }
+  100% {
+    background-color: transparent;
+  }
+}
