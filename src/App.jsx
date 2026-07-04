@@ -3,15 +3,22 @@ import { Geiger } from 'react-geiger';
 
 // Radioisotopes specifications
 const ISOTOPES = [
-  { id: 'u235', name: 'Uranium-235', symbol: 'U-235', danger: 'Medium', color: '#00ff66', decayTime: 180, speedSens: 4.5, cpmMultiplier: 10000, baseCpm: 120, maxSv: 48.5, label: 'Classic Geiger click rate with standard decay curve.' },
-  { id: 'ra226', name: 'Radium-226', symbol: 'Ra-226', danger: 'High', color: '#ffdd00', decayTime: 250, speedSens: 3.5, cpmMultiplier: 18000, baseCpm: 450, maxSv: 92.4, label: 'Volatile isotope. Higher click frequency and longer decay time.' },
-  { id: 'pu239', name: 'Plutonium-239', symbol: 'Pu-239', danger: 'CRITICAL', color: '#ff3300', decayTime: 100, speedSens: 2.5, cpmMultiplier: 35000, baseCpm: 900, maxSv: 220.0, label: 'Extremely hazardous. Spikes instantly to near-meltdown speed.' },
-  { id: 'k40', name: 'Potassium-40', symbol: 'K-40', danger: 'Minimal', color: '#00ccff', decayTime: 350, speedSens: 8.0, cpmMultiplier: 150, baseCpm: 12, maxSv: 0.9, label: 'Banana radiation. Extremely lazy, sparse click events.' }
+  { id: 'k40', name: 'Potassium-40', symbol: 'K-40', danger: 'Minimal', color: '#00ccff', decayTime: 350, speedSens: 25.0, cpmMultiplier: 10, baseCpm: 1, maxSv: 0.9, label: 'Banana radiation. Extremely lazy, sparse click events.' },
+  { id: 'u235', name: 'Uranium-235', symbol: 'U-235', danger: 'Medium', color: '#00ff66', decayTime: 180, speedSens: 8.0, cpmMultiplier: 150, baseCpm: 15, maxSv: 48.5, label: 'Classic Geiger click rate with standard decay curve.' },
+  { id: 'ra226', name: 'Radium-226', symbol: 'Ra-226', danger: 'High', color: '#ffdd00', decayTime: 250, speedSens: 3.5, cpmMultiplier: 1200, baseCpm: 80, maxSv: 92.4, label: 'Volatile isotope. Higher click frequency and longer decay time.' },
+  { id: 'pu239', name: 'Plutonium-239', symbol: 'Pu-239', danger: 'CRITICAL', color: '#ff3300', decayTime: 100, speedSens: 1.0, cpmMultiplier: 6000, baseCpm: 400, maxSv: 220.0, label: 'Extremely hazardous. Spikes instantly to near-meltdown speed.' }
 ];
+
+const HourglassLogo = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ color: '#d8b4fe', filter: 'drop-shadow(0 0 8px rgba(216,180,254,0.6))' }}>
+    <path d="M4 2h16v4L13 12l7 6v4H4v-4l7-6-7-6V2z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+  </svg>
+);
 
 export default function App() {
   // Config states
   const [isotopeId, setIsotopeId] = useState('u235');
+  const [isInitialized, setIsInitialized] = useState(false);
   const [isStartingUp, setIsStartingUp] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.8);
@@ -59,15 +66,25 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Initialization (Unlocks Audio)
+  const handleInitialize = () => {
+    setIsInitialized(true);
+    
+    // Fire a silent audio pulse to immediately unlock Web Audio API on this user interaction event
+    const unlockAudio = new Audio('/sounds/Geiger-shot-single.mp3');
+    unlockAudio.volume = 0;
+    unlockAudio.play().catch(()=>{});
+  };
+
   // Sync volume state with main.jsx globals
   useEffect(() => {
     window.geigerUserVolume = volume;
-    window.geigerMuted = isMuted;
+    window.geigerMuted = isMuted || !isInitialized;
     if (window.updateGeigerVolumes) {
       window.updateGeigerVolumes(intensity);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [volume, isMuted]);
+  }, [volume, isMuted, isInitialized]);
 
   // Log Isotope change
   useEffect(() => {
@@ -83,6 +100,16 @@ export default function App() {
     }, 45); // ~22fps scrolling wave
     return () => clearInterval(interval);
   }, [intensity]);
+
+  const handleTouchMove = (event) => {
+    if (event.touches.length > 0) {
+      const touch = event.touches[0];
+      handleMouseMove({
+        clientX: touch.clientX,
+        clientY: touch.clientY
+      });
+    }
+  };
 
   // Handle cursor moving inside reactor chamber
   const handleMouseMove = (event) => {
@@ -384,6 +411,9 @@ export default function App() {
   const currentSv = parseFloat((intensity * selectedIsotope.maxSv + 0.12 + Math.random() * 0.03).toFixed(2));
   const coreTemp = Math.round(300 + intensity * 950 + Math.random() * 5);
   
+  // Export target CPM to audio interceptor
+  window.currentGeigerTargetCpm = currentCpm;
+  
   let coreStatus = 'SAFE';
   let panelClass = 'active';
   let textClass = 'glow-text-green';
@@ -417,7 +447,18 @@ export default function App() {
   return (
     <Geiger renderTimeThreshold={0} customSound="/sounds/Geiger-shot-single.mp3">
       
-      {isStartingUp && <div className="crt-startup-overlay" />}
+      {isStartingUp && (
+        <div className="crt-startup-overlay flex-col-center" style={{ zIndex: 100 }}>
+          <div className="font-mono uppercase z-10 crt-startup-text text-center">
+            <div className="tracking-widest" style={{ fontSize: 'clamp(1rem, 3vw, 1.5rem)', color: '#4ade80', marginBottom: '1rem', opacity: 0.7 }}>
+              Shit code REACTor
+            </div>
+            <div style={{ fontWeight: 'bold', fontSize: 'clamp(2.5rem, 8vw, 5rem)', color: 'var(--green-primary)', textShadow: '0 0 30px var(--green-primary)', letterSpacing: '0.1em' }}>
+              Chronicles <span className="lowercase text-gray-400" style={{ fontSize: 'clamp(1.5rem, 5vw, 3.5rem)' }}>studio</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Root Layout with CRT and screen shake */}
       <div className={`crt-container ${enableCRT ? 'crt-screen crt-flicker' : ''} ${enableScreenShake && intensity > 0.75 ? 'screen-shake' : ''}`}>
@@ -442,16 +483,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Chronicles Studio Branding */}
-            <a href="https://chronicles.cz" target="_blank" rel="noopener noreferrer" className="flex-row-center" style={{ textDecoration: 'none', gap: '12px', cursor: 'pointer', transition: 'opacity 0.2s' }} onMouseOver={e => e.currentTarget.style.opacity = '0.8'} onMouseOut={e => e.currentTarget.style.opacity = '1'}>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ margin: 0, fontSize: '10px', color: 'var(--green-dim)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Engineered by</p>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#4ade80' }}>Chronicles Studio</p>
-              </div>
-              <img src="/Chronicles%20studio%20logo.svg" alt="Chronicles Studio Logo" style={{ height: '32px' }} />
-            </a>
-
-            
             {/* LED Status Lightbar */}
             <div className="flex-row-center border border-green-dim bg-black/40 px-3 py-1.5 rounded">
               <div className="flex-row-center">
@@ -515,8 +546,8 @@ export default function App() {
                 </div>
 
                 {/* Oscilloscope timeline screen */}
-                <div className="flex-column-grow gap-1">
-                  <div className="text-[10px] text-gray-400 tracking-widest uppercase">Oscilloscope: Particle Pulse Wave</div>
+                <div className="flex flex-col flex-grow gap-2 mt-2 mobile-hidden">
+                  <div className="text-[10px] text-gray-400 tracking-widest uppercase mb-1">Oscilloscope: Particle Pulse Wave</div>
                   <div className="border border-green-dim bg-black/70 rounded relative overflow-hidden flex-grow" style={{ minHeight: '60px', height: '80px' }}>
                     <canvas ref={oscilloscopeRef} className="w-full h-full block" />
                   </div>
@@ -540,7 +571,7 @@ export default function App() {
               </div>
 
               {/* WIDGET: PERFORMANCE LAB STATS */}
-              <div className="cyber-panel p-2 flex flex-col gap-2">
+              <div className="cyber-panel p-2 flex flex-col gap-3 mobile-hidden shrink-0">
                 <div className="border-b border-green-dim pb-1">
                   <span className="font-bold text-xs tracking-wider">RENDER STATS LOG</span>
                 </div>
@@ -567,15 +598,60 @@ export default function App() {
             </aside>
 
             {/* COLUMN 2: REACTOR CHAMBER - INTERACTIVE AREA */}
-            <main className="dashboard-column center">
-              <div 
-                className="cyber-panel active flex-grow relative flex flex-col justify-between overflow-hidden cursor-crosshair group"
+            <main className="dashboard-column center relative overflow-hidden">
+              
+              {/* SHUTTER OVERLAYS */}
+              <div className="pointer-events-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', flexDirection: 'column', transition: 'opacity 1.5s', opacity: isInitialized ? 0 : 1 }}>
+                {/* Top Shutter */}
+                <div className="reactor-shutter" style={{ width: '100%', height: '50%', backgroundColor: 'rgba(0,0,0,0.9)', borderBottom: '2px solid var(--green-primary)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '2rem', transition: 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)', transform: isInitialized ? 'translateY(-100%)' : 'translateY(0)' }}>
+                  <div style={{ width: '50%', height: '8px', backgroundColor: 'rgba(0,255,102,0.3)', marginBottom: '8px', borderRadius: '4px' }} />
+                </div>
+                
+                {/* Bottom Shutter */}
+                <div className="reactor-shutter" style={{ width: '100%', height: '50%', backgroundColor: 'rgba(0,0,0,0.9)', borderTop: '2px solid var(--green-primary)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '2rem', transition: 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)', transform: isInitialized ? 'translateY(100%)' : 'translateY(0)' }}>
+                  <div style={{ width: '50%', height: '8px', backgroundColor: 'rgba(0,255,102,0.3)', marginTop: '8px', borderRadius: '4px' }} />
+                </div>
+              </div>
+
+              {/* CENTER INITIALIZE BUTTON */}
+              {!isInitialized && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 60 }}>
+                  <button 
+                    className="cyber-btn glow-text-green font-mono uppercase cursor-pointer"
+                    style={{ padding: '1rem 3rem', backgroundColor: 'rgba(0,0,0,0.8)', fontSize: '1.5rem', letterSpacing: '0.1em', border: '2px solid var(--green-primary)', transition: 'background-color 0.2s' }}
+                    onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(0,255,102,0.2)'}
+                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.8)'}
+                    onClick={handleInitialize}
+                  >
+                    INITIALIZE CORE
+                  </button>
+                </div>
+              )}
+
+              <div className="cyber-panel flex-grow flex flex-col bg-black cursor-crosshair group overflow-hidden shrink-0"
                 ref={cardRef}
                 onMouseMove={handleMouseMove}
+                onTouchMove={handleTouchMove}
+                style={{ touchAction: 'none' }}
               >
-                {/* Diagonal Hazard border accents */}
-                <div className="absolute top-0 left-0 w-full h-2 hazard-stripes" />
-                <div className="absolute bottom-0 left-0 w-full h-2 hazard-stripes" />
+                {/* Top Chamber Header */}
+                <div className="z-20 p-2 border-b border-green-dim/30 bg-black/75 text-center flex flex-col gap-1">
+                  <div className="flex-row-center justify-center gap-2">
+                    <span className="text-yellow-500 text-xs animate-pulse">⚠️</span>
+                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase font-mono">
+                      CORE REACTOR INTERACTIVE CHAMBER
+                    </span>
+                  </div>
+                  <div className="text-[9px] text-gray-500 font-mono uppercase">
+                    OVERRIDE SYSTEMS TO OBSERVE GEIGER PULSES UNDER EXTREME SYNTHETIC LOAD.
+                  </div>
+                </div>
+
+                {/* Inner Canvas Area */}
+                <div className="relative flex-grow overflow-hidden">
+                  {/* Diagonal Hazard border accents */}
+                  <div className="absolute top-0 left-0 w-full h-2 hazard-stripes z-20 pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-full h-2 hazard-stripes z-20 pointer-events-none" />
 
                 {/* Neon glow effect tracking cursor */}
                 <div style={{
@@ -597,32 +673,23 @@ export default function App() {
                 <div className="absolute inset-0 pointer-events-none border border-green-dim/30 m-3 rounded flex items-center justify-center">
                   {/* Crosshair scope */}
                   <svg className="w-36 h-36 text-green-primary/10" viewBox="0 0 100 100" fill="none" stroke="currentColor">
-                    <circle cx="50" cy="50" r="40" strokeWidth="0.5" strokeDasharray="3 3" />
+                    <circle cx="50" cy="50" r="40" strokeWidth="0.5" strokeDasharray="3 3" pathLength="60" />
                     <circle cx="50" cy="50" r="20" strokeWidth="0.5" />
                     <line x1="50" y1="5" x2="50" y2="95" strokeWidth="0.5" />
                     <line x1="5" y1="50" x2="95" y2="50" strokeWidth="0.5" />
                   </svg>
                   
                   {/* Target coordinates panel */}
-                  <div className="absolute bottom-3 left-3 text-[9px] text-green-primary/40 font-mono">
+                  <div className="absolute font-mono" style={{ top: '16px', left: '16px', fontSize: '10px', color: 'rgba(0, 255, 102, 0.5)' }}>
                     COORD: X:{Math.round(position.x)} Y:{Math.round(position.y)} | VEL: {Math.round(intensity * 100)} RAD/s
                   </div>
-                  <div className="absolute top-3 right-3 text-[9px] text-green-primary/40 font-mono tracking-widest">
+                  <div className="absolute font-mono tracking-widest" style={{ top: '16px', right: '16px', fontSize: '10px', color: 'rgba(0, 255, 102, 0.5)' }}>
                     SYS: ACTIVE
                   </div>
                 </div>
 
-                {/* Compact Top Header inside Chamber */}
-                <div className="z-20 p-2 text-center pointer-events-none mt-2 select-none w-full">
-                  <div className="flex-row-center justify-center gap-1.5">
-                    <span className="text-yellow-500 text-xs animate-pulse">⚠️</span>
-                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase font-mono">
-                      CORE REACTOR INTERACTIVE CHAMBER
-                    </span>
-                  </div>
-                  <div className="text-[9px] text-gray-500 mt-0.5 font-mono">
-                    BOMBARD REACTOR CORE BY HOVERING CURSOR TO EMIT RADIOACTIVE PARTICLES
-                  </div>
+                {/* Compact Top Header moved to dedicated top bar above */}
+
                 </div>
 
                 {/* Chamber Status Bar */}
@@ -645,13 +712,13 @@ export default function App() {
             <aside className="dashboard-column right">
               
               {/* PANEL: REACTOR SOUND & CRT SETTINGS */}
-              <div className="cyber-panel p-2 flex flex-col gap-2">
+              <div className="cyber-panel p-2 flex flex-col gap-4 shrink-0 mobile-order-3">
                 <div className="border-b border-green-dim pb-1 flex-space-between text-xs">
                   <span className="font-bold tracking-wider">AUDIO & CORE MONITOR</span>
                 </div>
                 
                 {/* Audio volume & mute controls */}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   <div className="flex-space-between">
                     <span className="text-xs text-gray-400">MUTED</span>
                     <button 
@@ -665,7 +732,7 @@ export default function App() {
                     </button>
                   </div>
                   
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-1">
                     <div className="flex-space-between text-[10px] text-gray-400">
                       <span>AUDIO VOLUME</span>
                       <span>{Math.round(volume * 100)}%</span>
@@ -683,7 +750,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="border-t border-green-dim/20 pt-2 flex flex-col gap-1.5">
+                <div className="border-t border-green-dim/20 pt-3 flex flex-col gap-3">
                   <div className="flex-space-between text-xs">
                     <span className="text-gray-400">CRT FILTER</span>
                     <input 
@@ -703,8 +770,8 @@ export default function App() {
                     />
                   </div>
                   
-                  <div className="flex flex-col gap-0.5 mt-0.5">
-                    <span className="text-[9px] text-gray-400">PARTICLE EMISSION</span>
+                  <div className="flex flex-col gap-2 mt-3">
+                    <span className="text-xs text-gray-400 tracking-wider">PARTICLE EMISSION</span>
                     <div className="grid-cols-3">
                       {['low', 'medium', 'high'].map(lvl => (
                         <button
@@ -721,12 +788,12 @@ export default function App() {
               </div>
 
               {/* PANEL: ISOTOPE LOADER */}
-              <div className="cyber-panel p-2 flex flex-col gap-2 flex-grow overflow-hidden">
+              <div className="cyber-panel p-2 flex flex-col gap-3 flex-grow overflow-hidden shrink-0 mobile-order-2">
                 <div className="border-b border-green-dim pb-1 flex-space-between text-xs">
                   <span className="font-bold tracking-wider">LOAD ISOTOPE FUEL</span>
                 </div>
 
-                <div className="flex-column-grow gap-1.5 overflow-y-auto pr-1">
+                <div className="flex-column-grow gap-2 overflow-y-auto pr-1">
                   {ISOTOPES.map(iso => (
                     <label 
                       key={iso.id}
@@ -767,12 +834,12 @@ export default function App() {
               </div>
 
               {/* PANEL: CORE REACTOR ACTIONS */}
-              <div className="cyber-panel p-2 flex flex-col gap-2">
+              <div className="cyber-panel p-2 flex flex-col gap-4 shrink-0 mobile-order-1">
                 <div className="border-b border-green-dim pb-1 flex-space-between text-xs">
                   <span className="font-bold tracking-wider">REACTOR EMISSION</span>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-3">
                   <button 
                     className="cyber-btn text-[11px] py-1"
                     onClick={() => triggerManualRenders(40)}
@@ -790,11 +857,10 @@ export default function App() {
               </div>
 
             </aside>
-
           </div>
 
           {/* REACTOR EVENT LOG CONSOLE */}
-          <footer className="cyber-panel p-2 dashboard-footer bg-black/85">
+          <footer className="cyber-panel p-2 dashboard-footer bg-black/85 relative overflow-hidden">
             <div className="border-b border-green-dim/30 pb-0.5 flex-space-between text-xs">
               <span className="font-bold tracking-wider text-[11px]">☢️ SYSTEM EVENT MONITOR LOG</span>
               <span className="text-[9px] text-gray-500 font-mono">SYS_LOGS_ACTIVE // MAX_CAP_15</span>
@@ -816,6 +882,18 @@ export default function App() {
                 );
               })}
             </div>
+
+            {/* STUDIO CREDENTIALS PANEL (CONSOLE CORNER) */}
+            <a href="https://chronicles.cz" target="_blank" rel="noopener noreferrer" className="flex-row-center" style={{ position: 'absolute', bottom: 0, right: 0, gap: '16px', backgroundColor: 'rgba(0,0,0,0.95)', padding: '12px 16px', borderTop: '1px solid rgba(0,255,102,0.5)', borderLeft: '1px solid rgba(0,255,102,0.5)', borderTopLeftRadius: '8px', zIndex: 10, textDecoration: 'none', cursor: 'pointer', boxShadow: '-5px -5px 20px rgba(0,0,0,0.8)', transition: 'border-color 0.2s', alignItems: 'center' }} onMouseOver={e => e.currentTarget.style.borderColor = 'var(--green-primary)'} onMouseOut={e => { e.currentTarget.style.borderTopColor = 'rgba(0,255,102,0.5)'; e.currentTarget.style.borderLeftColor = 'rgba(0,255,102,0.5)'; }}>
+              <div style={{ width: '185px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div className="uppercase font-bold" style={{ fontSize: '10px', color: 'var(--green-primary)', letterSpacing: '0.1em', marginBottom: '2px' }}>Engineered by</div>
+                <div className="typing-text font-mono uppercase" style={{ fontSize: '18px', fontWeight: 'bold', color: '#d8b4fe', textShadow: '0 0 10px rgba(216,180,254,0.5)' }}>
+                  Chronicles <span className="lowercase text-gray-400">studio</span>
+                </div>
+              </div>
+              <HourglassLogo />
+            </a>
+
           </footer>
 
         </div>

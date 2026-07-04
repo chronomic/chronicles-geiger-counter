@@ -4,9 +4,8 @@ import './index.css'
 import App from './App.jsx'
 
 // Audio Element Pool to prevent browser media element exhaustion (limit is 40 in Chrome)
-const POOL_SIZE = 16;
+const POOL_SIZE = 40;
 const audioPool = [];
-let poolIndex = 0;
 
 const OriginalAudio = window.Audio;
 if (OriginalAudio) {
@@ -15,10 +14,22 @@ if (OriginalAudio) {
     audioPool.push(audio);
   }
 
+  const getAvailableAudio = () => {
+    // Only recycle audio that has finished playing
+    let audio = audioPool.find(a => a.ended || (a.duration && a.currentTime >= a.duration));
+    if (!audio) {
+      // Force recycle the oldest one in the pool
+      audio = audioPool.shift();
+      audioPool.push(audio);
+      audio.pause();
+    }
+    try { audio.currentTime = 0; } catch(e) {}
+    return audio;
+  };
+
   // Override window.Audio constructor
   window.Audio = function(src) {
-    const audio = audioPool[poolIndex];
-    poolIndex = (poolIndex + 1) % POOL_SIZE;
+    const audio = getAvailableAudio();
     if (src) {
       audio.src = src;
     }
@@ -27,15 +38,13 @@ if (OriginalAudio) {
 }
 
 // Override document.createElement for audio elements
-const originalCreateElement = document.createElement;
-document.createElement = function(tagName, options) {
-  if (tagName && tagName.toLowerCase() === 'audio') {
-    const audio = audioPool[poolIndex];
-    poolIndex = (poolIndex + 1) % POOL_SIZE;
-    return audio;
-  }
-  return originalCreateElement.call(document, tagName, options);
-};
+  const originalCreateElement = document.createElement;
+  document.createElement = function(tagName, options) {
+    if (tagName && tagName.toLowerCase() === 'audio') {
+      return getAvailableAudio();
+    }
+    return originalCreateElement.call(document, tagName, options);
+  };
 
 // Patch AudioContext for react-geiger browser autoplay compatibility
 const OriginalAudioContext = window.AudioContext || window.webkitAudioContext;
@@ -72,16 +81,11 @@ if (OriginalAudioContext) {
     window.webkitAudioContext = PatchedAudioContext;
   }
 
-  // Resume all created contexts on first user click/interaction
+  // Resume all created contexts on user interaction
   const resumeAudio = () => {
     activeContexts.forEach(ctx => {
-      OriginalAudioContext.prototype.resume.call(ctx)
-        .then(() => console.log("Geiger AudioContext resumed successfully!"))
-        .catch(e => console.error("Failed to resume Geiger AudioContext:", e));
+      OriginalAudioContext.prototype.resume.call(ctx).catch(e => {});
     });
-    window.removeEventListener('click', resumeAudio);
-    window.removeEventListener('keydown', resumeAudio);
-    window.removeEventListener('touchstart', resumeAudio);
   };
 
   window.addEventListener('click', resumeAudio);
@@ -114,17 +118,20 @@ let lastPlayTime = 0;
 
 HTMLMediaElement.prototype.play = function() {
   const intensity = window.currentGeigerIntensity !== undefined ? window.currentGeigerIntensity : 0;
-  // If intensity is very small or zero, do not play
-  if (intensity <= 0.01) {
-    return Promise.resolve();
-  }
-
   const now = performance.now();
   
-  // Calculate dynamic cooldown based on mouse speed (intensity) - doubled frequency limits
-  const minInterval = 6 + (1 - intensity) * 50; 
-  const jitter = Math.random() * (10 + (1 - intensity) * 60);
-  const cooldown = minInterval + jitter;
+  // Pull the calculated target CPM from the React app
+  const targetCpm = window.currentGeigerTargetCpm || 10;
+  
+  // Calculate ideal milliseconds between clicks (60,000 ms / CPM)
+  let baseInterval = 60000 / Math.max(1, targetCpm);
+  
+  // Apply Poisson-like jitter for realistic radiation randomness (-ln(rand) * mean)
+  // We clamp it slightly to avoid excessively long gaps
+  let cooldown = -Math.log(Math.random()) * baseInterval;
+  
+  // Hard cap to prevent browser audio engine exhaustion
+  if (cooldown < 3) cooldown = 3;
 
   if (now - lastPlayTime < cooldown) {
     return Promise.resolve();

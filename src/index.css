@@ -45,6 +45,32 @@ html, body, #root {
   box-sizing: border-box;
 }
 
+/* Utility layout classes to replace some Tailwind dependencies */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-grow { flex-grow: 1; }
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+.absolute { position: absolute; }
+.relative { position: relative; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.gap-6 { gap: 1.5rem; }
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+.flex-row { flex-direction: row; }
+.gap-8 { gap: 2rem; }
+
 /* Custom Scrollbar for Terminal aesthetics */
 ::-webkit-scrollbar {
   width: 8px;
@@ -131,6 +157,7 @@ html, body, #root {
   box-shadow: 0 0 15px rgba(0, 255, 102, 0.05), inset 0 0 15px rgba(0, 255, 102, 0.05);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
+  padding: 12px;
 }
 
 .cyber-panel::before {
@@ -432,7 +459,7 @@ html, body, #root {
 }
 
 .dashboard-main {
-  height: calc(100vh - 480px); /* Adjusted for 3x taller footer */
+  flex-grow: 1; /* Automatically fill remaining viewport space */
   display: grid;
   grid-template-columns: 400px 1fr 400px;
   grid-template-rows: 1fr; /* Force the single row to stretch to 100% height */
@@ -440,10 +467,52 @@ html, body, #root {
   min-height: 0; /* Crucial for nested flex overflow */
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1400px) {
   .dashboard-main {
-    grid-template-columns: 1fr;
+    grid-template-columns: 320px 1fr 320px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  .mobile-order-1 { order: 1; }
+  .mobile-order-2 { order: 2; }
+  .mobile-order-3 { order: 3; }
+  .dashboard-container {
+    height: auto !important;
+    min-height: 100vh;
     overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .dashboard-header {
+    height: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .dashboard-main {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+    gap: 16px;
+  }
+  .dashboard-column {
+    height: auto;
+    overflow: visible;
+  }
+  .dashboard-column.center {
+    height: 50vh;
+    min-height: 350px;
+  }
+  .dashboard-column.left,
+  .dashboard-column.right {
+    width: 100%;
+    min-height: auto;
+  }
+  .dashboard-footer {
+    display: none !important;
   }
 }
 
@@ -453,6 +522,18 @@ html, body, #root {
   gap: 8px;
   min-height: 0;
   height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 2px; /* Slight padding for scrollbars */
+}
+
+/* Scrollbar specifically for the columns */
+.dashboard-column::-webkit-scrollbar {
+  width: 4px;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
 }
 
 .dashboard-column.left {
@@ -468,8 +549,9 @@ html, body, #root {
 }
 
 .dashboard-footer {
-  flex-shrink: 0;
-  height: 400px; /* 3x taller log terminal */
+  flex-shrink: 1; /* Allow shrinking if viewport is too small */
+  height: 250px; /* Reduced by ~35% for better 1080p fit */
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -550,6 +632,7 @@ html, body, #root {
   z-index: 9999;
   pointer-events: none;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
   animation: crt-startup-fade 2.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
@@ -562,10 +645,11 @@ html, body, #root {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: white;
+  background: var(--green-primary);
   width: 0;
   height: 2px;
   animation: crt-line-expand 2.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
+  z-index: 0;
 }
 
 @keyframes crt-line-expand {
@@ -578,19 +662,20 @@ html, body, #root {
     width: 100%;
     height: 2px;
     opacity: 1;
-    box-shadow: 0 0 15px 2px white;
+    box-shadow: 0 0 15px 2px var(--green-dim);
   }
   40% {
     width: 100%;
     height: 2px;
     opacity: 1;
-    box-shadow: 0 0 20px 5px white;
+    box-shadow: 0 0 20px 5px var(--green-primary);
   }
   60% {
     width: 100%;
     height: 100vh;
+    background: rgba(0, 255, 102, 0.15); /* Darker green flash */
     opacity: 1;
-    box-shadow: none;
+    box-shadow: inset 0 0 100px var(--green-primary);
   }
   100% {
     width: 100%;
@@ -606,4 +691,48 @@ html, body, #root {
   100% {
     background-color: transparent;
   }
+}
+
+/* Chronicles Studio Typing Animation */
+.typing-text {
+  display: inline-block;
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid #d8b4fe;
+  animation: typing-write 4s steps(20, end) infinite, typing-blink 0.75s step-end infinite;
+  vertical-align: bottom;
+  max-width: 18ch;
+}
+
+@keyframes typing-write {
+  0%, 15% { width: 0; }
+  45%, 85% { width: 18ch; }
+  100% { width: 0; }
+}
+
+@keyframes typing-blink {
+  from, to { border-color: transparent; }
+  50% { border-color: #d8b4fe; }
+}
+
+/* Early Fade Out for Startup Logo */
+.crt-startup-text {
+  animation: text-fade-early 1.2s cubic-bezier(0.8, 0, 0.2, 1) forwards;
+}
+
+@keyframes text-fade-early {
+  0%, 50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Reactor Shutter Texture */
+.reactor-shutter {
+  background: repeating-linear-gradient(
+    0deg,
+    #050505,
+    #050505 15px,
+    #0a0a0a 15px,
+    #0a0a0a 30px
+  );
+  box-shadow: inset 0 0 50px rgba(0, 255, 102, 0.05);
 }
