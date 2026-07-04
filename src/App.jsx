@@ -25,9 +25,9 @@ export default function App() {
   const [particleDensity, setParticleDensity] = useState('medium');
   const [enableCRT, setEnableCRT] = useState(true);
   const [enableScreenShake, setEnableScreenShake] = useState(true);
-  
+
   // Interactive states
-  const [intensity, setIntensity] = useState(0); 
+  const [intensity, setIntensity] = useState(0);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [_manualPulse, setManualPulse] = useState(0); // Driven to trigger re-renders
   const [activeParticles, setActiveParticles] = useState(0);
@@ -69,11 +69,11 @@ export default function App() {
   // Initialization (Unlocks Audio)
   const handleInitialize = () => {
     setIsInitialized(true);
-    
+
     // Fire a silent audio pulse to immediately unlock Web Audio API on this user interaction event
     const unlockAudio = new Audio('/sounds/Geiger-shot-single.mp3');
     unlockAudio.volume = 0;
-    unlockAudio.play().catch(()=>{});
+    unlockAudio.play().catch(() => { });
   };
 
   // Sync volume state with main.jsx globals
@@ -116,36 +116,40 @@ export default function App() {
     if (!cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
     const now = Date.now();
-    
+
     // Speed in pixels per millisecond
-    const dt = now - lastMove.current.time || 1; 
+    const dt = now - lastMove.current.time || 1;
     const dx = event.clientX - lastMove.current.x;
     const dy = event.clientY - lastMove.current.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const speed = dist / dt; 
+    const speed = dist / dt;
 
     // Normalize speed according to loaded isotope sensitivity
-    const newIntensity = Math.min(speed / selectedIsotope.speedSens, 1); 
+    const newIntensity = Math.min(speed / selectedIsotope.speedSens, 1);
 
     setIntensity(newIntensity);
-    
+
     // Push updates to Geiger sound handler
     if (window.updateGeigerVolumes) {
       window.updateGeigerVolumes(newIntensity);
     }
-    
+
     lastMove.current = { time: now, x: event.clientX, y: event.clientY };
-    
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-    setPosition({ x: mouseX, y: mouseY });
 
     // Emit radioactive particles
     const canvas = canvasRef.current;
+
+    // Fix offset by calculating coordinates relative to the canvas itself, not the outer card
+    const canvasRect = canvas ? canvas.getBoundingClientRect() : rect;
+    const mouseX = event.clientX - canvasRect.left;
+    const mouseY = event.clientY - canvasRect.top;
+
+    setPosition({ x: mouseX, y: mouseY });
+
     if (canvas) {
       const densityMax = particleDensity === 'high' ? 8 : particleDensity === 'medium' ? 4 : 2;
       const count = Math.max(1, Math.round(newIntensity * densityMax));
-      
+
       for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
         const velocity = (Math.random() * 2 + 0.5) * (1 + newIntensity * 4);
@@ -184,12 +188,12 @@ export default function App() {
     const interval = setInterval(() => {
       // Modifies state to force re-render, playing Geiger clicks
       setManualPulse(prev => prev + 1);
-      
+
       // Simulate erratic mouse positioning to spawn particles
       const canvas = canvasRef.current;
       const pulseIntensity = Math.random() * 0.5 + 0.2;
       setIntensity(pulseIntensity);
-      
+
       if (window.updateGeigerVolumes) {
         window.updateGeigerVolumes(pulseIntensity);
       }
@@ -198,7 +202,7 @@ export default function App() {
         const rx = Math.random() * canvas.width;
         const ry = Math.random() * canvas.height;
         setPosition({ x: rx, y: ry });
-        
+
         for (let j = 0; j < 5; j++) {
           const angle = Math.random() * Math.PI * 2;
           particlesRef.current.push({
@@ -231,7 +235,7 @@ export default function App() {
     const interval = setInterval(() => {
       setManualPulse(prev => prev + 1);
       setIntensity(1.0);
-      
+
       if (window.updateGeigerVolumes) {
         window.updateGeigerVolumes(1.0);
       }
@@ -242,7 +246,7 @@ export default function App() {
         const rx = Math.random() * canvas.width;
         const ry = Math.random() * canvas.height;
         setPosition({ x: rx, y: ry });
-        
+
         for (let j = 0; j < 8; j++) {
           const angle = Math.random() * Math.PI * 2;
           particlesRef.current.push({
@@ -377,7 +381,7 @@ export default function App() {
       for (let i = 0; i < history.length; i++) {
         const xPos = (i / (history.length - 1)) * w;
         const val = history[i];
-        
+
         // Add electrical jitter based on intensity
         let yOffset = 0;
         if (val > 0.02) {
@@ -410,15 +414,15 @@ export default function App() {
   const currentCpm = Math.round(intensity * selectedIsotope.cpmMultiplier + (selectedIsotope.baseCpm || 20) * (1 + Math.random() * 0.15));
   const currentSv = parseFloat((intensity * selectedIsotope.maxSv + 0.12 + Math.random() * 0.03).toFixed(2));
   const coreTemp = Math.round(300 + intensity * 950 + Math.random() * 5);
-  
+
   // Export target CPM to audio interceptor
   window.currentGeigerTargetCpm = currentCpm;
-  
+
   let coreStatus = 'SAFE';
   let panelClass = 'active';
   let textClass = 'glow-text-green';
   let ledClass = 'led-green';
-  
+
   if (intensity > 0.8) {
     coreStatus = 'CRITICAL MELTDOWN';
     panelClass = 'critical-red';
@@ -446,7 +450,7 @@ export default function App() {
 
   return (
     <Geiger renderTimeThreshold={0} customSound="/sounds/Geiger-shot-single.mp3">
-      
+
       {isStartingUp && (
         <div className="crt-startup-overlay flex-col-center" style={{ zIndex: 100 }}>
           <div className="font-mono uppercase z-10 crt-startup-text text-center">
@@ -462,26 +466,52 @@ export default function App() {
 
       {/* Root Layout with CRT and screen shake */}
       <div className={`crt-container ${enableCRT ? 'crt-screen crt-flicker' : ''} ${enableScreenShake && intensity > 0.75 ? 'screen-shake' : ''}`}>
-        
+
         {/* CRT Scanline Noise Layer */}
         {enableCRT && <div className="crt-noise" />}
-        
+
         {/* Reactor Meltdown Alarm Flash BG overlay */}
         <div className={`dashboard-container select-none ${intensity > 0.75 ? 'alarm-flash-bg' : ''}`}>
-          
+
           {/* HEADER CONSOLE BAR */}
           <header className="cyber-panel dashboard-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div className="flex-row-center">
-              <span className="text-2xl">☢️</span>
-              <div>
-                <h1 className="text-lg font-bold tracking-widest glow-text-green m-0">
-                  GEIGER PERFORMANCE REACTOR TERMINAL v4.2
-                </h1>
-                <p className="text-[10px] text-gray-400 font-sans tracking-wide m-0">
-                  REAL-TIME MONITORING OF UNOPTIMIZED REACT RENDERS AND EVENT-TRIGGERED PARTICLE DECAY
-                </p>
-              </div>
+
+            {/* DESKTOP HEADER (Grid layout for perfect alignment) */}
+            <div className="mobile-hidden" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: '16px', alignItems: 'center' }}>
+              <span style={{ fontSize: '34px', lineHeight: '1', gridRow: '1 / span 2', alignSelf: 'center' }}>☢️</span>
+              <h1 className="text-lg font-bold tracking-widest glow-text-green m-0 leading-tight" style={{ gridRow: '1', alignSelf: 'end', marginBottom: '2px' }}>
+                GEIGER PERFORMANCE REACTOR TERMINAL v4.2
+              </h1>
+              <p className="text-[10px] text-gray-400 font-sans tracking-wide m-0" style={{ gridColumn: '2', gridRow: '2', alignSelf: 'start' }}>
+                REAL-TIME MONITORING OF UNOPTIMIZED REACT RENDERS AND EVENT-TRIGGERED PARTICLE DECAY
+              </p>
             </div>
+
+            {/* MOBILE HEADER (Flex Layout for perfect alignment) */}
+            <a href="https://chronicles.cz" target="_blank" rel="noreferrer" className="desktop-hidden cursor-pointer bg-black/40 border border-green-dim/30 rounded p-3 mb-3 transition-colors hover:border-green-primary/50 flex flex-col gap-1 w-full" style={{ textDecoration: 'none', color: 'inherit', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.05)' }}>
+
+              <div className="flex flex-row items-top justify-between w-full">
+                <div className="flex flex-row items-center gap-2 shrink">
+                  <span className="shrink-0 drop-shadow-[0_0_8px_rgba(0,255,102,0.4)]" style={{ fontSize: '34px', lineHeight: '1' }}>☢️</span>
+                  <h1 className="font-bold tracking-widest glow-text-green m-0 text-left leading-[1.15]" style={{ fontSize: '16px' }}>
+                    GEIGER PERFORMANCE<br />REACTOR
+                  </h1>
+                </div>
+
+                <div className="flex flex-col items-end shrink-0 border-l border-green-dim/30 pl-3 ml-2">
+                  <div className="uppercase font-bold tracking-[0.2em]" style={{ fontSize: '12px', color: 'var(--green-primary)', lineHeight: '1' }}>Engineered by</div>
+                  <div className="font-mono uppercase font-bold text-right" style={{ fontSize: '16px', color: '#d8b4fe', textShadow: '0 0 10px rgba(216,180,254,0.5)', lineHeight: '1.1', marginTop: '5px' }}>
+                    Chronicles<br /><span className="lowercase text-gray-400" style={{ fontSize: '14px' }}>studio</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full h-[1px] bg-green-dim/30"></div>
+
+              <p className="font-sans tracking-widest m-0 text-center w-full" style={{ fontSize: '12px', color: '#f3f4f6', lineHeight: '1.3' }}>
+                REAL-TIME MONITORING OF UNOPTIMIZED REACT RENDERS
+              </p>
+            </a>
 
             {/* LED Status Lightbar */}
             <div className="flex-row-center border border-green-dim bg-black/40 px-3 py-1.5 rounded">
@@ -506,17 +536,17 @@ export default function App() {
 
           {/* MAIN CONTAINER GRID */}
           <div className="dashboard-main">
-            
+
             {/* COLUMN 1: DIAGNOSTIC INSTRUMENTS */}
-            <aside className="dashboard-column left">
-              
+            <aside className="dashboard-column left mobile-col-order-2">
+
               {/* WIDGET: REACTOR DIAGNOSTICS */}
               <div className={`cyber-panel p-2 flex-grow flex flex-col gap-2.5 ${panelClass}`}>
                 <div className="border-b border-green-dim pb-1 flex-space-between text-xs">
                   <span className="font-bold tracking-wider">CORE METRICS</span>
                   <span className="text-[9px] text-gray-500">[ SENSOR LOADED ]</span>
                 </div>
-                
+
                 {/* CPM Digital Panel */}
                 <div className="bg-black-60 p-2 text-center relative overflow-hidden">
                   <div className="text-[9px] text-gray-500 tracking-wider text-left">TUBE DISCHARGE (CPM)</div>
@@ -524,9 +554,9 @@ export default function App() {
                     {currentCpm.toLocaleString()}
                   </div>
                   <div className="w-full bg-gray-900 h-1 rounded overflow-hidden mt-1">
-                    <div 
+                    <div
                       className="h-full transition-all duration-75"
-                      style={{ 
+                      style={{
                         width: `${intensity * 100}%`,
                         backgroundColor: intensity > 0.8 ? 'var(--red-meltdown)' : intensity > 0.5 ? 'var(--orange-hazard)' : intensity > 0.15 ? 'var(--yellow-warning)' : 'var(--green-primary)'
                       }}
@@ -598,15 +628,15 @@ export default function App() {
             </aside>
 
             {/* COLUMN 2: REACTOR CHAMBER - INTERACTIVE AREA */}
-            <main className="dashboard-column center relative overflow-hidden">
-              
+            <main className="dashboard-column center mobile-col-order-1 relative overflow-hidden">
+
               {/* SHUTTER OVERLAYS */}
               <div className="pointer-events-none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', flexDirection: 'column', transition: 'opacity 1.5s', opacity: isInitialized ? 0 : 1 }}>
                 {/* Top Shutter */}
                 <div className="reactor-shutter" style={{ width: '100%', height: '50%', backgroundColor: 'rgba(0,0,0,0.9)', borderBottom: '2px solid var(--green-primary)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '2rem', transition: 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)', transform: isInitialized ? 'translateY(-100%)' : 'translateY(0)' }}>
                   <div style={{ width: '50%', height: '8px', backgroundColor: 'rgba(0,255,102,0.3)', marginBottom: '8px', borderRadius: '4px' }} />
                 </div>
-                
+
                 {/* Bottom Shutter */}
                 <div className="reactor-shutter" style={{ width: '100%', height: '50%', backgroundColor: 'rgba(0,0,0,0.9)', borderTop: '2px solid var(--green-primary)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '2rem', transition: 'transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)', transform: isInitialized ? 'translateY(100%)' : 'translateY(0)' }}>
                   <div style={{ width: '50%', height: '8px', backgroundColor: 'rgba(0,255,102,0.3)', marginTop: '8px', borderRadius: '4px' }} />
@@ -616,7 +646,7 @@ export default function App() {
               {/* CENTER INITIALIZE BUTTON */}
               {!isInitialized && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 60 }}>
-                  <button 
+                  <button
                     className="cyber-btn glow-text-green font-mono uppercase cursor-pointer"
                     style={{ padding: '1rem 3rem', backgroundColor: 'rgba(0,0,0,0.8)', fontSize: '1.5rem', letterSpacing: '0.1em', border: '2px solid var(--green-primary)', transition: 'background-color 0.2s' }}
                     onMouseOver={e => e.currentTarget.style.backgroundColor = 'rgba(0,255,102,0.2)'}
@@ -635,15 +665,17 @@ export default function App() {
                 style={{ touchAction: 'none' }}
               >
                 {/* Top Chamber Header */}
-                <div className="z-20 p-2 border-b border-green-dim/30 bg-black/75 text-center flex flex-col gap-1">
-                  <div className="flex-row-center justify-center gap-2">
-                    <span className="text-yellow-500 text-xs animate-pulse">⚠️</span>
-                    <span className="text-[10px] text-gray-400 font-bold tracking-widest uppercase font-mono">
-                      CORE REACTOR INTERACTIVE CHAMBER
+                <div className="z-20 p-3 border-b border-green-dim/30 bg-black/75 flex justify-center w-full">
+                  <div className="flex flex-col text-left w-full max-w-[95%] md:max-w-2xl">
+                    <div className="flex flex-row items-center" style={{ gap: '8px' }}>
+                      <span className="text-yellow-500 animate-pulse shrink-0 leading-none" style={{ fontSize: '14px' }}>⚠️</span>
+                      <span className="text-[11px] md:text-[12px] text-gray-400 font-bold tracking-widest uppercase font-mono leading-none mt-[2px]">
+                        CORE REACTOR INTERACTIVE CHAMBER
+                      </span>
+                    </div>
+                    <span className="text-[10px] md:text-[11px] text-gray-500 font-mono uppercase leading-tight mt-1.5 pl-[22px]">
+                      OVERRIDE SYSTEMS TO OBSERVE GEIGER PULSES UNDER EXTREME SYNTHETIC LOAD.
                     </span>
-                  </div>
-                  <div className="text-[9px] text-gray-500 font-mono uppercase">
-                    OVERRIDE SYSTEMS TO OBSERVE GEIGER PULSES UNDER EXTREME SYNTHETIC LOAD.
                   </div>
                 </div>
 
@@ -653,42 +685,42 @@ export default function App() {
                   <div className="absolute top-0 left-0 w-full h-2 hazard-stripes z-20 pointer-events-none" />
                   <div className="absolute bottom-0 left-0 w-full h-2 hazard-stripes z-20 pointer-events-none" />
 
-                {/* Neon glow effect tracking cursor */}
-                <div style={{
-                  position: 'absolute',
-                  top: position.y - 180,
-                  left: position.x - 180,
-                  width: '360px',
-                  height: '360px',
-                  background: `radial-gradient(circle, ${selectedIsotope.color}15 0%, transparent 65%)`,
-                  pointerEvents: 'none',
-                  transition: 'background 0.1s ease',
-                  opacity: intensity > 0 ? 1 : 0
-                }} />
+                  {/* Neon glow effect tracking cursor */}
+                  <div style={{
+                    position: 'absolute',
+                    top: position.y - 180,
+                    left: position.x - 180,
+                    width: '360px',
+                    height: '360px',
+                    background: `radial-gradient(circle, ${selectedIsotope.color}15 0%, transparent 65%)`,
+                    pointerEvents: 'none',
+                    transition: 'background 0.1s ease',
+                    opacity: intensity > 0 ? 1 : 0
+                  }} />
 
-                {/* Particle canvas */}
-                <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-10 pointer-events-none" />
+                  {/* Particle canvas */}
+                  <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block z-10 pointer-events-none" />
 
-                {/* Overlay Scope Graphics (SVG) */}
-                <div className="absolute inset-0 pointer-events-none border border-green-dim/30 m-3 rounded flex items-center justify-center">
-                  {/* Crosshair scope */}
-                  <svg className="w-36 h-36 text-green-primary/10" viewBox="0 0 100 100" fill="none" stroke="currentColor">
-                    <circle cx="50" cy="50" r="40" strokeWidth="0.5" strokeDasharray="3 3" pathLength="60" />
-                    <circle cx="50" cy="50" r="20" strokeWidth="0.5" />
-                    <line x1="50" y1="5" x2="50" y2="95" strokeWidth="0.5" />
-                    <line x1="5" y1="50" x2="95" y2="50" strokeWidth="0.5" />
-                  </svg>
-                  
-                  {/* Target coordinates panel */}
-                  <div className="absolute font-mono" style={{ top: '16px', left: '16px', fontSize: '10px', color: 'rgba(0, 255, 102, 0.5)' }}>
-                    COORD: X:{Math.round(position.x)} Y:{Math.round(position.y)} | VEL: {Math.round(intensity * 100)} RAD/s
+                  {/* Overlay Scope Graphics (SVG) */}
+                  <div className="absolute inset-0 pointer-events-none border border-green-dim/30 m-3 rounded flex items-center justify-center">
+                    {/* Crosshair scope */}
+                    <svg className="w-36 h-36 text-green-primary/10" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                      <circle cx="50" cy="50" r="40" strokeWidth="0.5" strokeDasharray="3 3" pathLength="60" />
+                      <circle cx="50" cy="50" r="20" strokeWidth="0.5" />
+                      <line x1="50" y1="5" x2="50" y2="95" strokeWidth="0.5" />
+                      <line x1="5" y1="50" x2="95" y2="50" strokeWidth="0.5" />
+                    </svg>
+
+                    {/* Target coordinates panel */}
+                    <div className="absolute font-mono" style={{ top: '16px', left: '16px', fontSize: '10px', color: 'rgba(0, 255, 102, 0.5)' }}>
+                      COORD: X:{Math.round(position.x)} Y:{Math.round(position.y)} | VEL: {Math.round(intensity * 100)} RAD/s
+                    </div>
+                    <div className="absolute font-mono tracking-widest" style={{ top: '16px', right: '16px', fontSize: '10px', color: 'rgba(0, 255, 102, 0.5)' }}>
+                      SYS: ACTIVE
+                    </div>
                   </div>
-                  <div className="absolute font-mono tracking-widest" style={{ top: '16px', right: '16px', fontSize: '10px', color: 'rgba(0, 255, 102, 0.5)' }}>
-                    SYS: ACTIVE
-                  </div>
-                </div>
 
-                {/* Compact Top Header moved to dedicated top bar above */}
+                  {/* Compact Top Header moved to dedicated top bar above */}
 
                 </div>
 
@@ -709,19 +741,19 @@ export default function App() {
             </main>
 
             {/* COLUMN 3: REACTOR SETTINGS & MANUAL SIMULATORS */}
-            <aside className="dashboard-column right">
-              
+            <aside className="dashboard-column right mobile-col-order-3">
+
               {/* PANEL: REACTOR SOUND & CRT SETTINGS */}
               <div className="cyber-panel p-2 flex flex-col gap-4 shrink-0 mobile-order-3">
                 <div className="border-b border-green-dim pb-1 flex-space-between text-xs">
                   <span className="font-bold tracking-wider">AUDIO & CORE MONITOR</span>
                 </div>
-                
+
                 {/* Audio volume & mute controls */}
                 <div className="flex flex-col gap-3">
                   <div className="flex-space-between">
                     <span className="text-xs text-gray-400">MUTED</span>
-                    <button 
+                    <button
                       className={`cyber-btn px-2 py-0.5 text-[10px] ${isMuted ? 'active' : ''}`}
                       onClick={() => {
                         setIsMuted(!isMuted);
@@ -731,16 +763,16 @@ export default function App() {
                       {isMuted ? 'MUTED' : 'UNMUTED'}
                     </button>
                   </div>
-                  
+
                   <div className="flex flex-col gap-1">
                     <div className="flex-space-between text-[10px] text-gray-400">
                       <span>AUDIO VOLUME</span>
                       <span>{Math.round(volume * 100)}%</span>
                     </div>
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="1" 
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
                       step="0.05"
                       value={volume}
                       onChange={(e) => setVolume(parseFloat(e.target.value))}
@@ -753,8 +785,8 @@ export default function App() {
                 <div className="border-t border-green-dim/20 pt-3 flex flex-col gap-3">
                   <div className="flex-space-between text-xs">
                     <span className="text-gray-400">CRT FILTER</span>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={enableCRT}
                       onChange={(e) => setEnableCRT(e.target.checked)}
                       className="accent-green-500"
@@ -762,14 +794,14 @@ export default function App() {
                   </div>
                   <div className="flex-space-between text-xs">
                     <span className="text-gray-400">SCREEN SHAKE</span>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={enableScreenShake}
                       onChange={(e) => setEnableScreenShake(e.target.checked)}
                       className="accent-green-500"
                     />
                   </div>
-                  
+
                   <div className="flex flex-col gap-2 mt-3">
                     <span className="text-xs text-gray-400 tracking-wider">PARTICLE EMISSION</span>
                     <div className="grid-cols-3">
@@ -795,18 +827,17 @@ export default function App() {
 
                 <div className="flex-column-grow gap-2 overflow-y-auto pr-1">
                   {ISOTOPES.map(iso => (
-                    <label 
+                    <label
                       key={iso.id}
-                      className={`flex flex-col p-1.5 border rounded cursor-pointer transition-all ${
-                        isotopeId === iso.id 
-                          ? 'bg-green-dim/10 border-green-primary' 
-                          : 'border-green-dim/20 hover:border-green-dim/50 bg-black/20'
-                      }`}
+                      className={`flex flex-col p-1.5 border rounded cursor-pointer transition-all ${isotopeId === iso.id
+                        ? 'bg-green-dim/10 border-green-primary'
+                        : 'border-green-dim/20 hover:border-green-dim/50 bg-black/20'
+                        }`}
                     >
                       <div className="flex-space-between">
                         <div className="flex-row-center">
-                          <input 
-                            type="radio" 
+                          <input
+                            type="radio"
                             name="isotope-loader"
                             value={iso.id}
                             checked={isotopeId === iso.id}
@@ -816,12 +847,11 @@ export default function App() {
                           <span className="font-bold text-xs tracking-wider" style={{ color: iso.color }}>{iso.symbol}</span>
                           <span className="text-[9px] text-gray-400 font-sans">{iso.name}</span>
                         </div>
-                        <span className={`text-[8px] px-1 py-0.25 rounded font-sans font-bold ${
-                          iso.danger === 'CRITICAL' ? 'bg-red-900/50 text-red-300 border border-red-700' :
+                        <span className={`text-[8px] px-1 py-0.25 rounded font-sans font-bold ${iso.danger === 'CRITICAL' ? 'bg-red-900/50 text-red-300 border border-red-700' :
                           iso.danger === 'High' ? 'bg-amber-900/50 text-amber-300 border border-amber-700' :
-                          iso.danger === 'Medium' ? 'bg-green-900/50 text-green-300 border border-green-700' :
-                          'bg-cyan-900/50 text-cyan-300 border border-cyan-700'
-                        }`}>
+                            iso.danger === 'Medium' ? 'bg-green-900/50 text-green-300 border border-green-700' :
+                              'bg-cyan-900/50 text-cyan-300 border border-cyan-700'
+                          }`}>
                           {iso.danger}
                         </span>
                       </div>
@@ -840,14 +870,14 @@ export default function App() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <button 
+                  <button
                     className="cyber-btn text-[11px] py-1"
                     onClick={() => triggerManualRenders(40)}
                   >
                     🚀 Ionization Pulse (40 Renders)
                   </button>
-                  
-                  <button 
+
+                  <button
                     className="cyber-btn cyber-btn-orange text-[11px] py-1"
                     onClick={triggerMeltdownTest}
                   >
@@ -865,8 +895,8 @@ export default function App() {
               <span className="font-bold tracking-wider text-[11px]">☢️ SYSTEM EVENT MONITOR LOG</span>
               <span className="text-[9px] text-gray-500 font-mono">SYS_LOGS_ACTIVE // MAX_CAP_15</span>
             </div>
-            
-            <div 
+
+            <div
               ref={logsContainerRef}
               className="flex-grow overflow-y-auto font-mono text-[10px] flex flex-col gap-0.5 pr-2"
             >

@@ -467,6 +467,12 @@ html, body, #root {
   min-height: 0; /* Crucial for nested flex overflow */
 }
 
+@media (min-width: 1025px) {
+  .desktop-hidden {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1400px) {
   .dashboard-main {
     grid-template-columns: 320px 1fr 320px;
@@ -488,9 +494,14 @@ html, body, #root {
   }
   .dashboard-header {
     height: auto;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
+    padding: 6px 4px 4px 4px;
+    gap: 4px;
+    text-align: left;
   }
+  .mobile-col-order-1 { order: 1; }
+  .mobile-col-order-2 { order: 2; }
+  .mobile-col-order-3 { order: 3; }
   .dashboard-main {
     display: flex;
     flex-direction: column;
