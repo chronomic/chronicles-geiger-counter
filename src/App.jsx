@@ -728,14 +728,14 @@ export default function App() {
                 {/* Chamber Status Bar */}
                 <div className="z-20 p-2.5 border-t border-green-dim/30 bg-black/75 flex-space-between text-xs font-mono">
                   <div className="flex-row-center">
-                    <span className="text-gray-500">ISOTOPE INSTALLED:</span>
+                    <span className="text-gray-500">ISOTOPE:</span>
                     <span style={{ color: selectedIsotope.color, textShadow: `0 0 6px ${selectedIsotope.color}` }} className="font-bold">
                       {selectedIsotope.name}
                     </span>
                   </div>
                   <div className="flex-row-center">
                     <div className={`w-2 h-2 rounded-full ${intensity > 0 ? 'bg-red-500 animate-ping' : 'bg-green-500'}`} />
-                    <span className="text-gray-400">{intensity > 0 ? 'BOMBARDMENT ACTIVE' : 'STABLE CORE'}</span>
+                    <span className="text-gray-400">{intensity > 0 ? 'BOMBARDMENT' : 'STABLE CORE'}</span>
                   </div>
                 </div>
               </div>
@@ -875,14 +875,14 @@ export default function App() {
                     className="cyber-btn text-[11px] py-1"
                     onClick={() => triggerManualRenders(40)}
                   >
-                    🚀 Ionization Pulse (40 Renders)
+                    Ionization Pulse (40 Renders)
                   </button>
 
                   <button
                     className="cyber-btn cyber-btn-orange text-[11px] py-1"
                     onClick={triggerMeltdownTest}
                   >
-                    🚨 Core Runaway Test (120 Renders)
+                    Core Runaway Test (120 Renders)
                   </button>
                 </div>
               </div>
